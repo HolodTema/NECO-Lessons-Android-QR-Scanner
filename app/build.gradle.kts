@@ -50,6 +50,8 @@ android {
 }
 
 dependencies {
+    //Zxing lib to recognize QR codes
+    implementation(libs.zxing)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
