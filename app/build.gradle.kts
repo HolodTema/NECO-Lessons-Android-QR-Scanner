@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.google.dagger.hilt)
+    alias(libs.plugins.org.jetbrains.kotlin.kapt)
 }
 
 android {
@@ -49,7 +51,26 @@ android {
     }
 }
 
+
+//there was a trouble with duplicate classes from com.intellij.annotations
+//and org.jetbrains.annotations. This problem appeared when I had applied kotlin-kapt
+//to use only one annotations, I excluded com.intellij.annotations from the app module
+configurations {
+    create("cleanedAnnotations")
+    implementation {
+        exclude(group = "com.intellij", module = "annotations")
+    }
+}
+
 dependencies {
+    //room
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
+
+    //hilt
+    implementation(libs.google.dagger.hilt.android)
+    kapt(libs.google.dagger.hilt.compiler)
+
     //Zxing lib to recognize QR codes
     implementation(libs.zxing)
 
