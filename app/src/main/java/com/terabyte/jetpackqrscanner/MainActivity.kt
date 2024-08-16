@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -32,6 +34,7 @@ import com.journeyapps.barcodescanner.ScanOptions
 import com.terabyte.jetpackqrscanner.data.MainDB
 import com.terabyte.jetpackqrscanner.data.Product
 import com.terabyte.jetpackqrscanner.ui.theme.JetpackQRScannerTheme
+import com.terabyte.jetpackqrscanner.ui.theme.Purple80
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -76,6 +79,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val launcherCheckScan = registerForActivityResult(
+        ScanContract()
+    ) { result ->
+        if (result.contents == null) {
+            Toast.makeText(this, "Nothing was scanned.", Toast.LENGTH_SHORT).show()
+        }
+        else {
+            CoroutineScope(Dispatchers.IO).launch {
+                val productByQR = mainDB.dao.getProductByQR(result.contents)
+                if(productByQR==null) {
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Product has not been added yet", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                else {
+                    mainDB.dao.updateProduct(
+                        productByQR.copy(
+                            isChecked = true
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -88,13 +116,15 @@ class MainActivity : ComponentActivity() {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = paddingVals.calculateTopPadding() + 10.dp),
+                            .padding(
+                                top = paddingVals.calculateTopPadding() + 10.dp,
+                            ),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .fillMaxHeight(0.9f)
+                                .fillMaxHeight(0.8f)
                         ) {
                             items(productStateList.value) { product ->
                                 Spacer(
@@ -105,7 +135,19 @@ class MainActivity : ComponentActivity() {
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(start = 10.dp, end = 10.dp)
+                                        .padding(start = 10.dp, end = 10.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if(product.isChecked) {
+                                            Color.Blue
+                                        } else {
+                                            Purple80
+                                        },
+                                        contentColor = if(product.isChecked) {
+                                            Purple80
+                                        } else {
+                                            Color.Blue
+                                        }
+                                    )
                                 ) {
                                     Text(
                                         modifier = Modifier
@@ -126,6 +168,15 @@ class MainActivity : ComponentActivity() {
                                 text = "Add new product"
                             )
                         }
+                        Button(
+                            onClick = {
+                                scanCheck()
+                            }
+                        ) {
+                            Text(
+                                text = "Check product"
+                            )
+                        }
                     }
                 }
             }
@@ -133,14 +184,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun scan() {
-        val scanOptions = ScanOptions()
-        scanOptions.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-        scanOptions.setPrompt("Scan a QR code")
-        scanOptions.setCameraId(0)
-        scanOptions.setBeepEnabled(false)
-        scanOptions.setBarcodeImageEnabled(true)
+        launcherScan.launch(getScanOptions())
+    }
 
-        launcherScan.launch(scanOptions)
+    private fun scanCheck() {
+        launcherCheckScan.launch(getScanOptions())
+    }
+
+    private fun getScanOptions(): ScanOptions {
+        return ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt("Scan a QR code")
+            setCameraId(0)
+            setBeepEnabled(false)
+            setBarcodeImageEnabled(true)
+        }
     }
 }
 
