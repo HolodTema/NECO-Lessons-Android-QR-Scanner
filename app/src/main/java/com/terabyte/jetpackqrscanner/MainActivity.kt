@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +33,8 @@ import com.terabyte.jetpackqrscanner.data.MainDB
 import com.terabyte.jetpackqrscanner.data.Product
 import com.terabyte.jetpackqrscanner.ui.theme.JetpackQRScannerTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -50,7 +53,26 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Nothing was scanned.", Toast.LENGTH_SHORT).show()
         }
         else {
-            Toast.makeText(this, "Scan data: ${result.contents}", Toast.LENGTH_SHORT).show()
+            CoroutineScope(Dispatchers.IO).launch {
+                val productByQR = mainDB.dao.getProductByQR(result.contents)
+                if(productByQR==null) {
+                    mainDB.dao.insertProduct(
+                        Product(
+                            null,
+                            "Product ${counter++}",
+                            result.contents,
+                        )
+                    )
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Saved!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                else {
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Item has been already scanned!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         }
     }
 
@@ -66,7 +88,7 @@ class MainActivity : ComponentActivity() {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = paddingVals.calculateTopPadding()+10.dp),
+                            .padding(top = paddingVals.calculateTopPadding() + 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         LazyColumn(
@@ -75,34 +97,33 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxHeight(0.9f)
                         ) {
                             items(productStateList.value) { product ->
-                                Text(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-                                    text = product.name,
-                                    textAlign = TextAlign.Center
-                                )
                                 Spacer(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(10.dp)
                                 )
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 10.dp, end = 10.dp)
+                                ) {
+                                    Text(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(15.dp),
+                                        text = product.name,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                         Button(
                             onClick = {
-                                coroutineScope.launch {
-                                    mainDB.dao.insertProduct(
-                                        Product(
-                                            null,
-                                            "Product ${counter++}",
-                                            "alkdjfalkjfd"
-                                        )
-                                    )
-                                }
+                                scan()
                             }
                         ) {
                             Text(
-                                text = "Create data"
+                                text = "Add new product"
                             )
                         }
                     }
